@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- App-internal sandbox (filesDir). FilePicker.copyFile writes imported
+         media to <filesDir>/imported/..., and the plugin wraps that destination
+         in the FileProvider — without this entry the wrap throws
+         "Failed to find configured root" and large audio/video imports are
+         silently dropped on Android. -->
+    <files-path name="files" path="." />
+    <external-path name="my_images" path="." />
+    <cache-path name="my_cache_images" path="." />
+</paths>

@@ -1,0 +1,35 @@
+{
+	"appId": "com.flipflip.app",
+	"appName": "FlipFlip",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 3000,
+			"launchAutoHide": false,
+			"backgroundColor": "#FFFFFF",
+			"showSpinner": false,
+			"androidScaleType": "CENTER_CROP",
+			"splashFullScreen": true,
+			"splashImmersive": true
+		},
+		"SystemBars": {
+			"insetsHandling": "disable"
+		}
+	},
+	"packageClassList": [
+		"BluetoothLe",
+		"CAPBrowserPlugin",
+		"DevicePlugin",
+		"FilesystemPlugin",
+		"SharePlugin",
+		"SplashScreenPlugin",
+		"FilePickerPlugin",
+		"SafeAreaPlugin",
+		"FlipAudioPlayer",
+		"FlipSystemAudio",
+		"FlipTranscoder"
+	]
+}

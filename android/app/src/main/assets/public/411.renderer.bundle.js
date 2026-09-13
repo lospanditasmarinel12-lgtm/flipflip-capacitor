@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkflipflip=self.webpackChunkflipflip||[]).push([[411],{7411(e,s,l){l.d(s,{SplashScreenWeb:()=>a});var p=l(6546);class a extends p.WebPlugin{async show(e){}async hide(e){}}}}]);

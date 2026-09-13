@@ -1,0 +1,11 @@
+App/build
+App/Pods
+App/output
+App/App/public
+App/CapApp-SPM/build
+DerivedData
+xcuserdata
+xcworkspace/xcuserdata
+*.xcuserstate
+capacitor-cordova-ios-plugins
+*.ipa

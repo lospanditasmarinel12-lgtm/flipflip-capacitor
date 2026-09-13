@@ -1,0 +1,1 @@
+(self.webpackChunkflipflip=self.webpackChunkflipflip||[]).push([[323],{9323(e,n,t){const{WebPlugin:c}=t(6546);e.exports={FlipTranscoderWeb:class extends c{async probe(e){return{kind:"other",width:0,height:0,convert:!1}}async convert(e){return{outputPath:e.path,converted:!1}}async cancel(){}}}}}]);

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+.opencode/
+src.bak.issues/
+.DS_Store
+Thumbs.db
+*.log
+.env
+yarn.lock
+
+# internal planning / audit docs (not part of the product)
+pending.md
+DEPENDENCY_UPGRADE_REPORT.md
+ELECTRON_SYNC_PLAN.md
+MOBILE_RESPONSIVE_PLAN.md
+PERFORMANCE_REVIEW.md
+PRODUCTION_RELEASE_PLAN.md
+SYSTEM_AUDIO_HAPTICS_PLAN.md
+UPGRADE_REPORT.md

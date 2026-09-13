@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FlipFlip</string>
+    <string name="title_activity_main">FlipFlip</string>
+    <string name="package_name">com.flipflip.app</string>
+    <string name="custom_url_scheme">com.flipflip.app</string>
+</resources>

@@ -1,0 +1,15 @@
+{
+  "name": "flipflip-system-audio",
+  "version": "1.0.0",
+  "description": "Native system-audio meter for FlipFlip haptics: captures the device output mix (Android Visualizer) and ships RMS/FFT data to JS.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  }
+}

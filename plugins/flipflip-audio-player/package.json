@@ -1,0 +1,15 @@
+{
+  "name": "flipflip-audio-player",
+  "version": "1.0.0",
+  "description": "Focus-safe native audio player for FlipFlip scene audio: no exclusive audio focus (Android) and mixing session (iOS), so video playback and background music keep playing. Includes a native meter feed for haptic analysis.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  }
+}
