@@ -455,7 +455,7 @@ class AudioOptions extends React.Component {
           }
         })
         .catch((err: any) => {
-          console.error("Error reading metadata:", err.message);
+          console.warn("Audio metadata read failed:", err.message);
           this.setState({loadingTag: false, errorTag: true});
           setTimeout(() => {this.setState({errorTag: false})}, 3000);
         });

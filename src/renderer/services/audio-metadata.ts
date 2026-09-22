@@ -23,10 +23,24 @@ export async function parseAudioFromPath(path: string): Promise<any> {
     const buffer = await readPrefixUsingFirstChunk(path, Filesystem, Directory);
     // Duration from a truncated buffer would be wrong — compute from a full
     // decode elsewhere (capped) or let the native player report it.
-    return parseBuffer(new Uint8Array(buffer), undefined, { duration: false });
+    return parseBestEffort(buffer);
   }
   const buffer = await fs.readFile(path);
-  return parseBuffer(new Uint8Array(buffer), undefined, { duration: true });
+  return parseBestEffort(buffer);
+}
+
+/**
+ * music-metadata is strict about tag strings (OpusTags from some encoders
+ * carry non-UTF-8 bytes and throw "The string contains invalid characters").
+ * Tags are a nice-to-have — the caller already falls back to a filename name —
+ * so never let a parse failure escape this path.
+ */
+async function parseBestEffort(buffer: ArrayBuffer): Promise<any> {
+  try {
+    return await parseBuffer(new Uint8Array(buffer), undefined, { duration: false, skipCovers: true });
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
@@ -51,7 +65,7 @@ async function readPrefixUsingFirstChunk(path: string, Filesystem: any, Director
     }
     if (size === MAX_METADATA_BYTES) return buffer;
     try {
-      const tags = await parseBuffer(new Uint8Array(buffer), undefined, { duration: false });
+      const tags = await parseBuffer(new Uint8Array(buffer), undefined, { duration: false, skipCovers: true });
       if (tags && tags.common && (tags.common.title || tags.common.artist || tags.common.album)) {
         return buffer;
       }
@@ -63,7 +77,8 @@ async function readPrefixUsingFirstChunk(path: string, Filesystem: any, Director
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
+  const sanitized = base64.replace(/[^A-Za-z0-9+/=]/g, "");
+  const binary = atob(sanitized);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);

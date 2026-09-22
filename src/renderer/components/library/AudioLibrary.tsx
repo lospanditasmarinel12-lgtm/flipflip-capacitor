@@ -80,6 +80,7 @@ import PlaylistList from "./PlaylistList";
 import AudioEdit from "./AudioEdit";
 import { pickFiles, pickDirectory } from "../../services/filepicker";
 import { syncPathExists } from "../../services/local-paths";
+import { getResolvedRewrite } from "../../services/optimize-library";
 import { parseAudioFromPath, parseAudioFromBuffer } from "../../services/audio-metadata";
 
 const drawerWidth = 240;
@@ -1205,14 +1206,20 @@ class AudioLibrary extends React.Component {
       case AF.audios:
         (async () => {
           let aResult = new Array<string>();
-          if (e.shiftKey) {
-            const adResult = await pickDirectory();
-            if (adResult.canceled || !adResult.filePaths.length) return;
-            aResult = aResult.concat(adResult.filePaths);
-          } else {
-            const fileResult = await pickFiles({});
-            if (fileResult.canceled || !fileResult.filePaths.length) return;
-            aResult = fileResult.filePaths;
+          try {
+            if (e.shiftKey) {
+              const adResult = await pickDirectory();
+              if (adResult.canceled || !adResult.filePaths.length) return;
+              aResult = aResult.concat(adResult.filePaths);
+            } else {
+              const fileResult = await pickFiles({});
+              if (fileResult.canceled || !fileResult.filePaths.length) return;
+              aResult = fileResult.filePaths;
+            }
+          } catch (err) {
+            console.error("[AudioLibrary] audio pick failed:", err);
+            this.props.systemMessage("Could not open the file picker. Try again or use URL import.");
+            return;
           }
           const pickedCount = aResult.length;
           aResult = aResult.filter((r) => isAudio(r, true));
@@ -1290,6 +1297,9 @@ class AudioLibrary extends React.Component {
 
   addAudioSources(newSources: Array<string>) {
     const originalSources = Array.from(this.props.library);
+    // A detached conversion may have landed (and deleted the original) before
+    // the pick result commits, so point new tracks at their optimized copies.
+    newSources = newSources.map(getResolvedRewrite);
     // dedup
     let sourceURLs = originalSources.map((s) => s.url);
     newSources = newSources.filter((s) => !sourceURLs.includes(s) && isAudio(s, true));
@@ -1299,20 +1309,14 @@ class AudioLibrary extends React.Component {
       id = Math.max(s.id + 1, id);
     });
 
-    let index = 0;
-    const addSourceLoop = () => {
-      if (index == newSources.length) {
-        this.props.onUpdateLibrary((l) => {
-          l.splice(0, l.length);
-          l.push(...originalSources);
-        });
-        this.setState({loadingSources: false});
-        return;
-      }
+    const nameFor = (url: string) => url.substring(url.lastIndexOf(path.sep) + 1, url.lastIndexOf(".")) || "";
 
-      const url = newSources[index];
-      index++;
-
+    // Create every entry immediately with a filename-derived fallback name and
+    // commit once, so the list renders at once and the "+" spinner clears right
+    // away. Previously each file's tag read was awaited serially BEFORE the
+    // commit, so a 10-file batch showed an empty list for minutes.
+    const entries: Array<Audio> = [];
+    for (const url of newSources) {
       if (url.startsWith("http") || syncPathExists(url)) {
         const newAudio = new Audio({
           url: url,
@@ -1320,29 +1324,61 @@ class AudioLibrary extends React.Component {
           tags: [],
         });
         id += 1;
-        parseAudioFromPath(url)
-          .then((metadata: any) => {
-            if (metadata) {
-              extractMusicMetadata(newAudio, metadata, this.props.cachePath);
-            }
-            if (!newAudio.name) {
-              newAudio.name = url.substring(url.lastIndexOf(path.sep) + 1, url.lastIndexOf("."));
-            }
-            originalSources.unshift(newAudio);
-            addSourceLoop();
-          })
-          .catch((err: any) => {
-            console.error("Error reading metadata, adding track with fallback name:", err.message);
-            newAudio.name = newAudio.name || url.substring(url.lastIndexOf(path.sep) + 1, url.lastIndexOf("."));
-            originalSources.unshift(newAudio);
-            addSourceLoop();
-          });
-      } else {
-        addSourceLoop();
+        newAudio.name = nameFor(url) || "Untitled track";
+        entries.push(newAudio);
       }
     }
 
-    addSourceLoop();
+    if (entries.length === 0) {
+      this.setState({loadingSources: false});
+      return;
+    }
+    originalSources.unshift(...entries);
+    this.props.onUpdateLibrary((l) => {
+      l.splice(0, l.length);
+      l.push(...originalSources);
+    });
+    this.setState({loadingSources: false, displaySources: this.getDisplaySources()});
+
+    // Tag enrichment in the background. Reading metadata pulls 512KB-4MB per
+    // file across the native bridge plus a music-metadata parse, so it is
+    // concurrency-capped and never blocks the list from showing. Each enriched
+    // track is patched back into the store as it lands.
+    const patchEntry = (patched: Audio, url: string) => {
+      this.props.onUpdateLibrary((l) => {
+        const idx = l.findIndex((s) => s.url === url);
+        if (idx >= 0) l[idx] = patched;
+      });
+      this.setState({displaySources: this.getDisplaySources()});
+    };
+
+    let cursor = 0;
+    const METADATA_CONCURRENCY = 4;
+    const enrichNext = () => {
+      const entry = entries[cursor++];
+      if (!entry) return;
+      parseAudioFromPath(entry.url)
+        .then((metadata: any) => {
+          const patched = new Audio({ ...entry });
+          if (metadata) {
+            extractMusicMetadata(patched, metadata, this.props.cachePath);
+          }
+          if (!patched.name) patched.name = nameFor(entry.url) || "Untitled track";
+          patchEntry(patched, entry.url);
+        })
+        .catch((err: any) => {
+          console.warn("Audio metadata read failed for", entry.url + ":", err.message);
+          const patched = new Audio({ ...entry });
+          if (!patched.name) patched.name = nameFor(entry.url) || "Untitled track";
+          patchEntry(patched, entry.url);
+        })
+        .finally(() => {
+          enrichNext();
+        });
+    };
+    for (let i = 0; i < Math.min(METADATA_CONCURRENCY, entries.length); i++) {
+      enrichNext();
+    }
   }
 
   onToggleBatchTagModal() {

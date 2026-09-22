@@ -42,6 +42,8 @@ import { getMemoryGovernor } from "../data/MemoryMonitor";
 import initMemoryDebug from "../data/MemoryDebug";
 import { computeDisplayAutoConfig } from "../data/AutoConfig";
 import { getSystemCapabilities } from "../services/system-capabilities";
+import { recoverInterruptedOptimization, reconcileMissingReferences } from "../services/optimize-library";
+import { buildLocalPathIndex } from "../services/local-paths";
 
 const appStorage = new AppStorage();
 
@@ -64,20 +66,36 @@ export default class Meta extends React.Component {
     setTimeout(() => { try { SplashScreen.hide(); } catch (e) {} }, 4000);
     appStorage.initialize().then((initial) => {
       useStore.setState(initial);
+      // A picker launch snapshots the live store to localStorage (filepicker.ts
+      // saveAppState), and launching the OS picker can reload the whole WebView
+      // faster than the debounced disk save. The snapshot is fresher than the
+      // disk data.json, so apply it AFTER the (stale) disk load rather than
+      // before it — otherwise the disk state clobbers the restore.
+      if (isCapacitor()) {
+        const savedState = restoreAppStateIfNeeded();
+        if (savedState) {
+          useStore.setState(savedState);
+        }
+      }
       this.forceUpdate();
       this.initOperationalFeatures();
+      // If a previous library-optimization sweep was killed mid-run, re-apply
+      // the from->to rewrites it finished so references keep pointing at the
+      // optimized copies (recovery then deletes the state file itself).
+      recoverInterruptedOptimization().catch((e) =>
+        console.warn("[FlipFlip] recovery skipped:", e));
+      // The local path index powers syncPathExists() everywhere (offline badges,
+      // source option hints). Build it so those answers reflect real disk state
+      // immediately, then re-point any reference whose file is gone but has an
+      // optimized copy sitting on disk.
+      buildLocalPathIndex()
+        .then(() => reconcileMissingReferences())
+        .catch((e) => console.warn("[FlipFlip] path reconciliation skipped:", e));
       // The native splash is held (launchAutoHide: false) until the app is
       // actually ready — hide it now that the store is loaded and first paint
       // has been scheduled, so the black gap is covered by the launch screen.
       try { SplashScreen.hide(); } catch (e) {}
     });
-
-    if (isCapacitor()) {
-      const savedState = restoreAppStateIfNeeded();
-      if (savedState) {
-        useStore.setState(savedState);
-      }
-    }
 
     this._prevState = { ...useStore.getState() };
     this._unsub = useStore.subscribe(() => {
@@ -194,7 +212,10 @@ export default class Meta extends React.Component {
   queueSave() {
     try {
       const state = this.storeState;
-      if (this._queueSave && (this._lastSave == null || new Date().getTime() - this._lastSave.getTime() > 3000)) {
+      // Persist quickly (imports, deletes, edits) so a WebView reload triggered
+      // by opening the OS picker can't race the write away. 700ms is short
+      // enough to settle bursts but still coalesces rapid-fire mutations.
+      if (this._queueSave && (this._lastSave == null || new Date().getTime() - this._lastSave.getTime() > 700)) {
         appStorage.save(state);
         this._lastSave = new Date();
         this._queueSave = false;

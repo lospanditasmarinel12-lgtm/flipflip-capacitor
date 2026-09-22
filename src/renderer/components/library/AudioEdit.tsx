@@ -215,7 +215,7 @@ class AudioEdit extends React.Component {
         }
       })
       .catch((err: any) => {
-        console.error("Error reading metadata:", err.message);
+        console.warn("Audio metadata read failed:", err.message);
       });
   }
 }

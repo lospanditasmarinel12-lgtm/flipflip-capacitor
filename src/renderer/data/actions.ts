@@ -6,6 +6,7 @@ import {pickFiles, pickDirectory} from "../services/filepicker";
 import { useStore } from "../stores/flipflipStore";
 import { getFilesystem } from "../services/filesystem";
 import { syncPathExists, rememberPath } from "../services/local-paths";
+import { getResolvedRewrite } from "../services/optimize-library";
 import { downloadTextFile } from "../services/save-file";
 import { parseAudioFromPath } from "../services/audio-metadata";
 
@@ -1842,7 +1843,9 @@ export function updateAudioLibrary(state: State, fn: (audios: Array<Audio>) => v
       state.audioSelected = state.audioSelected.filter((s: string) => s != url);
     }
   }
-  return {audios: state.audios, audioSelected: state.audioSelected};
+  // Return a new reference so reference-comparing consumers (the library lists
+  // snapshot displaySources) refresh after the in-place mutation.
+  return {audios: state.audios.concat(), audioSelected: state.audioSelected};
 }
 
 export function updateScript(state: State, script: CaptionScript): Object {
@@ -1865,7 +1868,8 @@ export function updateScriptLibrary(state: State, fn: (scripts: Array<CaptionScr
       state.scriptSelected = state.scriptSelected.filter((s: string) => s != url);
     }
   }
-  return {scripts: state.scripts, scriptSelected: state.scriptSelected};
+  // New reference so reference-comparing consumers refresh after the mutation.
+  return {scripts: state.scripts.concat(), scriptSelected: state.scriptSelected};
 }
 
 export function updateLibrary(state: State, fn: (library: Array<LibrarySource>) => void): Object {
@@ -1875,7 +1879,8 @@ export function updateLibrary(state: State, fn: (library: Array<LibrarySource>) 
       state.librarySelected = state.librarySelected.filter((s: string) => s != url);
     }
   }
-  return {library: state.library, librarySelected: state.librarySelected};
+  // New reference so reference-comparing consumers refresh after the mutation.
+  return {library: state.library.concat(), librarySelected: state.librarySelected};
 }
 
 export function clearBlacklist(state: State, sourceURL: string): Object {
@@ -2447,6 +2452,10 @@ function mergeSources(originalSources: Array<LibrarySource>, newSources: Array<L
 
 
 function addSources(originalSources: Array<LibrarySource>, newSources: Array<string>, library: Array<LibrarySource>) {
+  // A detached conversion can already have finished (deleting the original) by
+  // the time the import batch commits, so resolve every newly-added URL to its
+  // best-known final path before anything is recorded in the store.
+  newSources = newSources.map(getResolvedRewrite);
   // dedup
   newSources = [...new Set(newSources)];
   let sourceURLs = originalSources.map((s) => s.url);
