@@ -394,7 +394,7 @@ class GridPlayer extends React.Component {
   }
 
   toggleFull() {
-    const full = !isFullscreen();
+    const full = !this.props.config.displaySettings.fullScreen;
     this.setFullscreen(full);
     this.setMenuBarVisibility(!full);
   }

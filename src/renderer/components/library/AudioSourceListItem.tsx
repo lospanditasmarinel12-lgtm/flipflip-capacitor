@@ -7,6 +7,7 @@ import {
   Badge,
   Box,
   Checkbox,
+  CircularProgress,
   Divider,
   Fab,
   IconButton,
@@ -30,6 +31,7 @@ import Tag from "../../data/Tag";
 import {grey} from "@mui/material/colors";
 import Audio from "../../data/Audio";
 import SourceIcon from "./SourceIcon";
+import { isPathOptimizing, subscribeConversionBadges } from "../../services/convert-state";
 import MediaPreviewDialog from "./MediaPreviewDialog";
 import MoveToIndexDialog from "./MoveToIndexDialog";
 
@@ -84,7 +86,20 @@ class AudioSourceListItem extends React.Component {
     menuAnchor: null as any,
     previewOpen: false,
     moveIndexOpen: false,
+    optimizing: isPathOptimizing(this.props.source.url),
   };
+
+  private unsubBadge: (() => void) | null = null;
+
+  componentDidMount() {
+    this.unsubBadge = subscribeConversionBadges(() => {
+      this.setState({ optimizing: isPathOptimizing(this.props.source.url) });
+    });
+  }
+
+  componentWillUnmount() {
+    if (this.unsubBadge) this.unsubBadge();
+  }
 
   render() {
     return(
@@ -125,7 +140,7 @@ class AudioSourceListItem extends React.Component {
                     </Box>
                       :
                     <Box>
-                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Library Tagging
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Preview
                       <br/>
                       Shift+Click: Open Source
                       <br/>
@@ -134,19 +149,25 @@ class AudioSourceListItem extends React.Component {
                 }>
                   <Box onClick={this.onSourceIconClick.bind(this)}
                        sx={{ height: 40, width: 40, overflow: 'hidden', display: 'flex', justifyContent: 'center', cursor: 'pointer', userSelect: 'none' }}>
-                    {this.props.source.thumb != null && (
-                      <Box component="img" sx={{ height: '100%' }} src={this.props.source.thumb}/>
-                    )}
-                    {this.props.source.thumb == null && (
-                      <Fab
-                        size="small"
-                        sx={(theme) => ({
-                          backgroundColor: this.props.source.marked ? theme.palette.secondary.main : theme.palette.primary.main,
-                          boxShadow: 'none',
-                        })}>
-                        <StyledSourceIcon url={this.props.source.url} marked={this.props.source.marked}/>
-                      </Fab>
-                    )}
+                    <Badge
+                      invisible={!this.state.optimizing}
+                      overlap="circular"
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      badgeContent={<CircularProgress size={13} thickness={5} />}>
+                      {this.props.source.thumb != null && (
+                        <Box component="img" sx={{ height: '100%' }} src={this.props.source.thumb}/>
+                      )}
+                      {this.props.source.thumb == null && (
+                        <Fab
+                          size="small"
+                          sx={(theme) => ({
+                            backgroundColor: this.props.source.marked ? theme.palette.secondary.main : theme.palette.primary.main,
+                            boxShadow: 'none',
+                          })}>
+                          <StyledSourceIcon url={this.props.source.url} marked={this.props.source.marked}/>
+                        </Fab>
+                      )}
+                    </Badge>
                   </Box>
                 </Tooltip>
               </Badge>
@@ -178,6 +199,9 @@ class AudioSourceListItem extends React.Component {
           keepMounted
           open={this.state.menuAnchor != null}
           onClose={this.closeMenu.bind(this)}>
+          <MenuItem onClick={this.play.bind(this)}>
+            Play
+          </MenuItem>
           <MenuItem onClick={this.openPreview.bind(this)}>
             Preview
           </MenuItem>
@@ -250,11 +274,7 @@ class AudioSourceListItem extends React.Component {
       }
     } else if (!e.shiftKey && !e.ctrlKey) {
       this.props.savePosition();
-      try {
-        this.props.onPlay(this.props.source, this.props.sources);
-      } catch (e) {
-        this.props.systemMessage("The source " + sourceURL + " isn't in your Library");
-      }
+      this.openPreview();
     }
   }
 
@@ -303,6 +323,16 @@ class AudioSourceListItem extends React.Component {
   openPreview() {
     this.closeMenu();
     this.setState({previewOpen: true});
+  }
+
+  play() {
+    this.closeMenu();
+    this.props.savePosition();
+    try {
+      this.props.onPlay(this.props.source, this.props.sources);
+    } catch (e) {
+      this.props.systemMessage("The source " + this.props.source.url + " isn't in your Library");
+    }
   }
 
   closePreview() {

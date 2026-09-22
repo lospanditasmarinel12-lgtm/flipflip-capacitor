@@ -25,8 +25,6 @@ declare module 'gif-info';
 declare module 'react-color';
 declare module 'react-select';
 declare module 'react-select/creatable';
-declare module 'react-sortable-hoc';
-declare module 'react-sortablejs';
 declare module 'react-spring';
 declare module 'react-virtualized-auto-sizer';
 declare module 'react-window';

@@ -1,5 +1,4 @@
 import * as React from "react";
-import {sortableContainer, sortableElement} from 'react-sortable-hoc';
 import AutoSizer from "react-virtualized-auto-sizer";
 import {FixedSizeList} from "react-window";
 
@@ -16,7 +15,6 @@ import {
 import { styled } from "@mui/material/styles";
 
 
-import {arrayMove} from "../../data/utils";
 import {getFilesystem} from "../../services/filesystem";
 import CaptionScript from "../../data/CaptionScript";
 import ScriptSourceListItem from "./ScriptSourceListItem";
@@ -82,17 +80,6 @@ class ScriptSourceList extends React.Component {
     playWithScene: null as number,
   };
 
-  onSortEnd = ({oldIndex, newIndex}: {oldIndex: number, newIndex: number}) => {
-    this.props.onUpdateLibrary((l) => {
-      const oldIndexSource = this.props.sources[oldIndex];
-      const newIndexSource = this.props.sources[newIndex];
-      const libraryURLs = l.map((s: CaptionScript) => s.url);
-      const oldLibraryIndex = libraryURLs.indexOf(oldIndexSource.url);
-      const newLibraryIndex = libraryURLs.indexOf(newIndexSource.url);
-      arrayMove(l, oldLibraryIndex, newLibraryIndex);
-    });
-  };
-
   render() {
     if (this.props.sources.length == 0) {
       return (
@@ -123,12 +110,9 @@ class ScriptSourceList extends React.Component {
         <AutoSizer>
           {({ height, width } : {height: number, width: number}) => (
             <List id="sortable-list" disablePadding onClick={this.clearLastSelected.bind(this)}>
-              <this.SortableVirtualList
-                helperContainer={() => document.getElementById("sortable-list")}
-                distance={5}
+              <this.VirtualList
                 height={height}
-                width={width}
-                onSortEnd={this.onSortEnd.bind(this)}/>
+                width={width}/>
             </List>
           )}
         </AutoSizer>
@@ -372,9 +356,7 @@ class ScriptSourceList extends React.Component {
     return this.props.scenes.find((s) => s.id.toString() === id).name;
   }
 
-  SortableVirtualList = sortableContainer(this.VirtualList.bind(this));
-
-  VirtualList(props: any) {
+  VirtualList = (props: any) => {
     const { height, width } = props;
 
     return (
@@ -392,7 +374,7 @@ class ScriptSourceList extends React.Component {
     );
   }
 
-  SortableItem = sortableElement(({value}: {value: {index: number, style: any, data: Array<any>}}) => {
+  Item = ({value}: {value: {index: number, style: any, data: Array<any>}}) => {
     const index = value.index;
     const source: CaptionScript = value.data[index];
     return (
@@ -417,12 +399,13 @@ class ScriptSourceList extends React.Component {
         savePosition={this.savePosition.bind(this)}
         systemMessage={this.props.systemMessage.bind(this)}
       />
-    )});
+    );
+  };
 
   Row(props: any) {
     const { index } = props;
     return (
-      <this.SortableItem index={index} value={props}/>
+      <this.Item value={props}/>
     );
   }
 }

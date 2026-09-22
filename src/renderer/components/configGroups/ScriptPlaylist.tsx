@@ -1,5 +1,4 @@
 import * as React from "react";
-import Sortable from "react-sortablejs";
 
 import {syncPathExists} from "../../services/local-paths";
 import {openExternal, revealFile} from "../../services/links";
@@ -96,21 +95,6 @@ class ScriptPlaylist extends React.Component {
   render() {
     return (
       <List disablePadding>
-        <Sortable
-          tag="ul"
-          className={undefined}
-          options={{
-            animation: 150,
-            easing: "cubic-bezier(1, 0, 0, 1)",
-            disabled: true,
-          }}
-          onChange={(order: any, sortable: any, evt: any) => {
-            let newScripts = Array.from(this.props.playlist.scripts);
-            arrayMove(newScripts, evt.oldIndex, evt.newIndex);
-            this.props.onUpdateScene(this.props.scene, (s) => {
-              s.scriptPlaylists[this.props.playlistIndex].scripts = newScripts;
-            });
-          }}>
           <ScriptUl>
             {this.props.playlist.scripts.map((s, i) =>
               <ListItem key={i}>
@@ -156,7 +140,6 @@ class ScriptPlaylist extends React.Component {
               </ListItem>
             )}
           </ScriptUl>
-        </Sortable>
         {this.state.menu && (
           <Menu
             anchorEl={this.state.menu.anchorEl}

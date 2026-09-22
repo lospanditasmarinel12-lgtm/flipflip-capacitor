@@ -1,6 +1,5 @@
 import * as React from 'react';
 import wretch from "wretch";
-import Sortable from "react-sortablejs";
 
 import {
   AppBar,
@@ -49,7 +48,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import DeleteIcon from '@mui/icons-material/Delete';
-import DragHandleIcon from '@mui/icons-material/DragHandle';
 import FolderIcon from "@mui/icons-material/Folder";
 import GetAppIcon from '@mui/icons-material/GetApp';
 import GridOnIcon from '@mui/icons-material/GridOn';
@@ -392,14 +390,17 @@ const s = {
     color: theme.palette.text.primary,
     fontSize: theme.typography.h6.fontSize,
   }),
-  groupHandle: (theme: Theme) => ({ margin: theme.spacing(1), cursor: 'move' }),
 };
 
-const StyledSortable = styled(Sortable as any)(({ theme }) => ({
+const SortableBox = styled('div')(({ theme }) => ({
   padding: theme.spacing(1),
   display: 'flex',
   flexWrap: 'wrap',
 }));
+
+function StyledSortable(props: { children?: React.ReactNode, options?: any, onChange?: any }) {
+  return <SortableBox>{props.children}</SortableBox>;
+}
 
 const StyledJiggle = styled(Jiggle as any)(({ theme }) => ({
   marginRight: theme.spacing(1),
@@ -801,7 +802,7 @@ class ScenePicker extends React.Component {
                   {this.props.sceneGroups.filter((g) => g.type == SG.scene).map((g) =>
                     <div key={g.id}>
                       <Box sx={s.root}>
-                        <DragHandleIcon className={"group-handle"} sx={s.groupHandle}/>
+                        
                         {this.state.isEditing == g.id && (
                           <Box component="form" onSubmit={this.endEditingName.bind(this)} sx={s.groupTitle}>
                             <TextField
@@ -963,7 +964,7 @@ class ScenePicker extends React.Component {
                   {this.props.sceneGroups.filter((g) => g.type == SG.generator).map((g) =>
                     <div key={g.id}>
                       <Box sx={s.root}>
-                        <DragHandleIcon className={"group-handle"} sx={s.groupHandle}/>
+                        
                         {this.state.isEditing == g.id && (
                           <Box component="form" onSubmit={this.endEditingName.bind(this)} sx={s.groupTitle}>
                             <TextField
@@ -1125,7 +1126,7 @@ class ScenePicker extends React.Component {
                   {this.props.sceneGroups.filter((g) => g.type == SG.grid).map((g) =>
                     <div key={g.id}>
                       <Box sx={s.root}>
-                        <DragHandleIcon className={"group-handle"} sx={s.groupHandle}/>
+                        
                         {this.state.isEditing == g.id && (
                           <Box component="form" onSubmit={this.endEditingName.bind(this)} sx={s.groupTitle}>
                             <TextField

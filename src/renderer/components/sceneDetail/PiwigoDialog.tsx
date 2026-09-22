@@ -1,6 +1,5 @@
 import * as React from "react";
 import wretch from "wretch";
-import Sortable from "react-sortablejs";
 
 import {
   Button,
@@ -37,7 +36,6 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 import {AF, PW, PWS} from "../../data/const";
-import {arrayMove} from "../../data/utils";
 import en from "../../data/en";
 
 interface Album {
@@ -254,17 +252,8 @@ class PiwigoDialog extends React.Component {
               }
               label="Randomize"
             />
-            <Sortable
-              style={sortRandom ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
-              options={{
-                animation: 150,
-                easing: "cubic-bezier(1, 0, 0, 1)",
-              }}
-              onChange={(order: any, sortable: any, evt: any) => {
-                let newSortOrder = Array.from(this.state.sortOrder);
-                arrayMove(newSortOrder, evt.oldIndex, evt.newIndex);
-                this.setState({sortOrder: newSortOrder});
-              }}>
+            <div
+              style={sortRandom ? { pointerEvents: 'none', opacity: 0.6 } : undefined}>
               {sortOrder.map((column) =>
                 <Card sx={{ marginBottom: '5px' }} key={column.name}>
                   <CardContent sx={{ display: 'flex', padding: '5px !important' }} onClick={this.setColumnDirection.bind(this, column.name, column.direction === "ASC" ? "DESC" : "ASC")}>
@@ -285,7 +274,7 @@ class PiwigoDialog extends React.Component {
                   </CardContent>
                 </Card>
               )}
-            </Sortable>
+            </div>
           </React.Fragment>
         {(listType === PW.apiTypeTag || listType === PW.apiTypeCategory) &&
           <React.Fragment>

@@ -1,5 +1,4 @@
 import * as React from "react";
-import Sortable from "react-sortablejs";
 
 import {syncPathExists} from "../../services/local-paths";
 import {openExternal, revealFile} from "../../services/links";
@@ -201,20 +200,7 @@ class AudioPlaylist extends React.Component {
     } else {
       return (
         <List disablePadding>
-          <Sortable
-            className="audioList"
-            options={{
-              disabled: true,
-              animation: 150,
-              easing: "cubic-bezier(1, 0, 0, 1)",
-            }}
-            onChange={(order: any, sortable: any, evt: any) => {
-              let newAudios = Array.from(this.props.playlist.audios);
-              arrayMove(newAudios, evt.oldIndex, evt.newIndex);
-              this.props.onUpdateScene(this.props.scene, (s) => {
-                s.audioPlaylists[this.props.playlistIndex].audios = newAudios;
-              });
-            }}>
+          <div className="audioList">
             {this.props.playlist && this.props.playlist.audios && this.props.playlist.audios.map((a, i) =>
               <ListItem key={i}>
                 <ListAvatar>
@@ -260,7 +246,7 @@ class AudioPlaylist extends React.Component {
                                arrow={!!a.comment || (a.tags && a.tags.length > 0)}
                                title={
                                  <div>
-                                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Library Tagging
+                                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Preview
                                    <br/>
                                    Shift+Click: Open Source
                                    <br/>
@@ -304,13 +290,16 @@ class AudioPlaylist extends React.Component {
                 </ListItemSecondaryAction>
               </ListItem>
             )}
-          </Sortable>
+          </div>
           {this.state.menu && (
             <Menu
               anchorEl={this.state.menu.anchorEl}
               keepMounted
               open={true}
               onClose={this.closeMenu.bind(this)}>
+              <MenuItem onClick={this.play.bind(this, this.state.menu.trackIndex)}>
+                Play
+              </MenuItem>
               <MenuItem onClick={this.preview.bind(this, this.state.menu.trackIndex)}>
                 Preview
               </MenuItem>
@@ -465,12 +454,8 @@ class AudioPlaylist extends React.Component {
       if (syncPathExists(sourceURL)) {
         revealFile(sourceURL);
       }
-    } else if (!e.shiftKey && !e.ctrlKey && this.props.onPlay && this.props.systemMessage) {
-      try {
-        this.props.onPlay(audio, this.props.playlist.audios);
-      } catch (e) {
-        this.props.systemMessage("The source " + sourceURL + " isn't in your Library");
-      }
+    } else if (!e.shiftKey && !e.ctrlKey) {
+      this.preview(this.props.playlist.audios.indexOf(audio));
     }
   }
 
@@ -596,6 +581,18 @@ class AudioPlaylist extends React.Component {
   preview(trackIndex: number) {
     this.closeMenu();
     this.setState({previewIndex: trackIndex});
+  }
+
+  play(trackIndex: number) {
+    this.closeMenu();
+    const audio = this.props.playlist.audios[trackIndex];
+    if (this.props.onPlay && this.props.systemMessage) {
+      try {
+        this.props.onPlay(audio, this.props.playlist.audios);
+      } catch (e) {
+        this.props.systemMessage("The source " + audio.url + " isn't in your Library");
+      }
+    }
   }
 
   closePreview() {

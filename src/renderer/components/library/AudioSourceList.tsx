@@ -1,5 +1,4 @@
 import * as React from "react";
-import {sortableContainer, sortableElement} from 'react-sortable-hoc';
 import AutoSizer from "react-virtualized-auto-sizer";
 import {FixedSizeList} from "react-window";
 
@@ -70,28 +69,6 @@ class AudioSourceList extends React.Component {
     deleteDialog: null as Audio,
     sourceEdit: null as Audio,
     lastSelected: null as number,
-  };
-
-  onSortEnd = ({oldIndex, newIndex}: {oldIndex: number, newIndex: number}) => {
-    if (this.props.playlist) {
-      this.props.onUpdatePlaylists((pl) => {
-        const playlist = pl.find((p) => p.name == this.props.playlist);
-        const oldIndexSource = this.props.sources[oldIndex];
-        const newIndexSource = this.props.sources[newIndex];
-        const oldPlaylistIndex = playlist.audios.indexOf(oldIndexSource.id);
-        const newPlaylistIndex = playlist.audios.indexOf(newIndexSource.id);
-        arrayMove(playlist.audios, oldPlaylistIndex, newPlaylistIndex);
-      });
-    } else {
-      this.props.onUpdateLibrary((l) => {
-        const oldIndexSource = this.props.sources[oldIndex];
-        const newIndexSource = this.props.sources[newIndex];
-        const libraryURLs = l.map((s: Audio) => s.url);
-        const oldLibraryIndex = libraryURLs.indexOf(oldIndexSource.url);
-        const newLibraryIndex = libraryURLs.indexOf(newIndexSource.url);
-        arrayMove(l, oldLibraryIndex, newLibraryIndex);
-      });
-    }
   };
 
   applyDisplayMove(oldIndex: number, newIndex: number) {
@@ -166,13 +143,9 @@ class AudioSourceList extends React.Component {
         <AutoSizer>
           {({ height, width } : {height: number, width: number}) => (
             <List id="sortable-list" disablePadding onClick={this.clearLastSelected.bind(this)}>
-              <this.SortableVirtualList
-                helperContainer={() => document.getElementById("sortable-list")}
-                disabled
-                distance={5}
+              <this.VirtualList
                 height={height}
-                width={width}
-                onSortEnd={this.onSortEnd.bind(this)}/>
+                width={width}/>
             </List>
           )}
         </AutoSizer>
@@ -382,9 +355,7 @@ class AudioSourceList extends React.Component {
     this.onCloseSourceOptions();
   }
 
-  SortableVirtualList = sortableContainer(this.VirtualList.bind(this));
-
-  VirtualList(props: any) {
+  VirtualList = (props: any) => {
     const { height, width } = props;
 
     return (
@@ -402,7 +373,7 @@ class AudioSourceList extends React.Component {
     );
   }
 
-  SortableItem = sortableElement(({value}: {value: {index: number, style: any, data: Array<any>}}) => {
+  Item = ({value}: {value: {index: number, style: any, data: Array<any>}}) => {
     const index = value.index;
     const source: Audio = value.data[index];
     return (
@@ -432,12 +403,13 @@ class AudioSourceList extends React.Component {
         savePosition={this.savePosition.bind(this)}
         systemMessage={this.props.systemMessage.bind(this)}
       />
-    )});
+    );
+  };
 
   Row(props: any) {
     const { index } = props;
     return (
-      <this.SortableItem index={index} value={props}/>
+      <this.Item value={props}/>
     );
   }
 }

@@ -1,5 +1,4 @@
 import * as React from "react";
-import {sortableContainer, sortableElement} from 'react-sortable-hoc';
 import AutoSizer from "react-virtualized-auto-sizer";
 import {FixedSizeList} from "react-window";
 
@@ -144,23 +143,6 @@ class SourceList extends React.Component {
     deleteFile: false,
   };
 
-  onSortEnd = ({oldIndex, newIndex}: {oldIndex: number, newIndex: number}) => {
-    if (this.props.onUpdateLibrary) {
-      this.props.onUpdateLibrary((l) => {
-        const oldIndexSource = this.props.sources[oldIndex];
-        const newIndexSource = this.props.sources[newIndex];
-        const libraryURLs = l.map((s: LibrarySource) => s.url);
-        const oldLibraryIndex = libraryURLs.indexOf(oldIndexSource.url);
-        const newLibraryIndex = libraryURLs.indexOf(newIndexSource.url);
-        arrayMove(l, oldLibraryIndex, newLibraryIndex);
-      });
-    } else if (this.props.onUpdateScene) {
-      this.props.onUpdateScene((s) => {
-        arrayMove(s.sources, oldIndex, newIndex);
-      });
-    }
-  };
-
   applyDisplayMove(oldIndex: number, newIndex: number) {
     if (oldIndex === newIndex) return;
     if (this.props.onUpdateLibrary) {
@@ -232,13 +214,9 @@ class SourceList extends React.Component {
                     this.props.tutorial == SDT.sourceTags ||
                     this.props.tutorial == SDT.sourceCount ||
                     this.props.tutorial == SDT.sourceButtons}>
-              <this.SortableVirtualList
-                helperContainer={() => document.getElementById("sortable-list")}
-                disabled
-                distance={5}
+              <this.VirtualList
                 height={height}
-                width={width}
-                onSortEnd={this.onSortEnd.bind(this)}/>
+                width={width}/>
             </BackdropTopList>
           )}
         </AutoSizer>
@@ -789,9 +767,7 @@ class SourceList extends React.Component {
     }
   }
 
-  SortableVirtualList = sortableContainer(this.VirtualList.bind(this));
-
-  VirtualList(props: any) {
+  VirtualList = (props: any) => {
     const { height, width } = props;
 
     return (
@@ -809,7 +785,7 @@ class SourceList extends React.Component {
     );
   }
 
-  SortableItem = sortableElement(({value}: {value: {index: number, style: any, data: Array<any>}}) => {
+  Item = ({value}: {value: {index: number, style: any, data: Array<any>}}) => {
     const index = value.index;
     const source: LibrarySource = value.data[index];
     return (
@@ -848,12 +824,13 @@ class SourceList extends React.Component {
         savePosition={this.savePosition.bind(this)}
         systemMessage={this.props.systemMessage.bind(this)}
       />
-    )});
+    );
+  };
 
   Row(props: any) {
     const { index } = props;
     return (
-      <this.SortableItem index={index} value={props}/>
+      <this.Item value={props}/>
     );
   }
 }

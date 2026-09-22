@@ -7,6 +7,7 @@ import {openExternal, revealFile} from "../../services/links";
 import {
   Badge,
   Checkbox,
+  CircularProgress,
   Divider,
   Fab,
   IconButton,
@@ -33,6 +34,7 @@ import SourceIcon from "./SourceIcon";
 import LibrarySource from "../../data/LibrarySource";
 import Config from "../../data/Config";
 import {grey} from "@mui/material/colors";
+import { isPathOptimizing, subscribeConversionBadges } from "../../services/convert-state";
 import MediaPreviewDialog, {isPreviewableUrl} from "./MediaPreviewDialog";
 import MoveToIndexDialog from "./MoveToIndexDialog";
 
@@ -119,7 +121,21 @@ class SourceListItem extends React.Component {
     menuAnchor: null as any,
     previewOpen: false,
     moveIndexOpen: false,
+    // Live "optimizing in the background" marker for this source's file.
+    optimizing: isPathOptimizing(this.props.source.url),
   };
+
+  private unsubBadge: (() => void) | null = null;
+
+  componentDidMount() {
+    this.unsubBadge = subscribeConversionBadges(() => {
+      this.setState({ optimizing: isPathOptimizing(this.props.source.url) });
+    });
+  }
+
+  componentWillUnmount() {
+    if (this.unsubBadge) this.unsubBadge();
+  }
 
   render() {
     const sourceType = getSourceType(this.props.source.url);
@@ -154,7 +170,7 @@ class SourceListItem extends React.Component {
               badgeContent={<StyledErrorIcon />}>
               <Tooltip disableInteractive title={
                 <div>
-                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Library Tagging
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Click: Preview
                   <br/>
                   Shift+Click: Open Source
                   <br/>
@@ -167,13 +183,23 @@ class SourceListItem extends React.Component {
                   }
                 </div>
               }>
-                <StyledFab
-                  size="small"
-                  $marked={this.props.source.marked}
-                  onClick={this.onSourceIconClick.bind(this)}
-                  sx={[this.props.tutorial == SDT.sourceAvatar && { border: '2px solid', borderColor: 'secondary.main', borderStyle: 'solid' }]}>
-                  <StyledSourceIcon url={this.props.source.url} $marked={this.props.source.marked} />
-                </StyledFab>
+                <Badge
+                    invisible={!this.state.optimizing}
+                    overlap="circular"
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    sx={(theme) => ({ '& .MuiBadge-badge': { zIndex: theme.zIndex.fab + 2 } })}
+                    badgeContent={<CircularProgress size={14} thickness={5} />}>
+                    <StyledFab
+                        size="small"
+                        $marked={this.props.source.marked}
+                        onClick={this.onSourceIconClick.bind(this)}
+                        sx={[this.props.tutorial == SDT.sourceAvatar && { border: '2px solid', borderColor: 'secondary.main', borderStyle: 'solid' }]}>
+                        <StyledSourceIcon url={this.props.source.url} $marked={this.props.source.marked} />
+                      </StyledFab>
+                  </Badge>
                 </Tooltip>
             </Badge>
           </ListItemAvatar>
@@ -227,6 +253,9 @@ class SourceListItem extends React.Component {
           keepMounted
           open={this.state.menuAnchor != null}
           onClose={this.closeMenu.bind(this)}>
+          <MenuItem onClick={this.play.bind(this)}>
+            Play
+          </MenuItem>
           {isPreviewableUrl(this.props.source.url) && (
             <MenuItem onClick={this.openPreview.bind(this)}>
               Preview
@@ -342,11 +371,15 @@ class SourceListItem extends React.Component {
         this.openDirectory(cachePath);
       }
     } else if (!e.shiftKey && !e.ctrlKey) {
-      this.props.savePosition();
-      try {
-        this.props.onPlay(this.props.source, this.props.sources);
-      } catch (e) {
-        this.props.systemMessage("The source " + sourceURL + " isn't in your Library");
+      if (isPreviewableUrl(this.props.source.url)) {
+        this.openPreview();
+      } else {
+        this.props.savePosition();
+        try {
+          this.props.onPlay(this.props.source, this.props.sources);
+        } catch (e) {
+          this.props.systemMessage("The source " + sourceURL + " isn't in your Library");
+        }
       }
     }
   }
@@ -396,6 +429,16 @@ class SourceListItem extends React.Component {
   openPreview() {
     this.closeMenu();
     this.setState({previewOpen: true});
+  }
+
+  play() {
+    this.closeMenu();
+    this.props.savePosition();
+    try {
+      this.props.onPlay(this.props.source, this.props.sources);
+    } catch (e) {
+      this.props.systemMessage("The source " + this.props.source.url + " isn't in your Library");
+    }
   }
 
   closePreview() {

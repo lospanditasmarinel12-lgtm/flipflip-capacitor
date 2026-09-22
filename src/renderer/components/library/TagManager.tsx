@@ -1,5 +1,4 @@
 import * as React from "react";
-import Sortable from "react-sortablejs";
 
 import {
   AppBar,
@@ -93,11 +92,15 @@ const StyledContainer = styled(Container)(({ theme }) => ({
   overflowY: 'auto',
 }));
 
-const StyledSortable = styled(Sortable)(({ theme }) => ({
+const SortableBox = styled('div')(({ theme }) => ({
   padding: theme.spacing(1),
   display: 'flex',
   flexWrap: 'wrap',
 }));
+
+function StyledSortable(props: { children?: React.ReactNode, options?: any, onChange?: any }) {
+  return <SortableBox>{props.children}</SortableBox>;
+}
 
 const StyledTag = styled(Card)(({ theme }) => ({
   marginRight: theme.spacing(1),
