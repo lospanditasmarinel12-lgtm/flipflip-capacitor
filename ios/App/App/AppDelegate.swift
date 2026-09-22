@@ -6,19 +6,17 @@ import Capacitor
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    private var interruptionToken: NSObjectProtocol?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Configure a mixing audio session so WebView media (scene audio +
         // video) coexists with background music instead of pausing or ducking
         // it. .playback keeps audio available; .mixWithOthers mixes alongside
-        // other apps at their normal volume (no ducking).
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            NSLog("[AudioSession] failed to configure mixing session: %@", error.localizedDescription)
-        }
+        // other apps at their normal volume (no ducking). Combined with the
+        // UIBackgroundModes audio/bluetooth-central entries, playback and haptic
+        // device kept alive in the background, this survives minimize.
+        configureAudioSession()
+        observeSessionInterruptions()
         return true
     }
 
@@ -33,11 +31,45 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+        // Re-activate the audio session — a phone call / Control Center or the
+        // system can deactivate it in the background.
+        configureAudioSession()
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        configureAudioSession()
+    }
+
+    /// .playback + .mixWithOthers keeps scene audio and haptic playback running
+    /// alongside other apps; re-asserted (repeatedly) so interruptions and
+    /// background transitions can't leave the session idle.
+    private func configureAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            NSLog("[AudioSession] failed to configure mixing session: %@", error.localizedDescription)
+        }
+    }
+
+    /// System interruptions (phone call, Siri) deactivate our session; re-arm it
+    /// when they end so scene audio + haptics resume automatically.
+    private func observeSessionInterruptions() {
+        guard interruptionToken == nil else { return }
+        interruptionToken = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let info = note.userInfo,
+                  let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            NSLog("[AudioSession] interruption %@", type == .began ? "began" : "ended")
+            if type == .ended {
+                self?.configureAudioSession()
+            }
+        }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- The native loopback media server (http://127.0.0.1) is served over
+         plain HTTP. Permit cleartext only to loopback; everything else keeps
+         the platform default (cleartext blocked on Android 9+). -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

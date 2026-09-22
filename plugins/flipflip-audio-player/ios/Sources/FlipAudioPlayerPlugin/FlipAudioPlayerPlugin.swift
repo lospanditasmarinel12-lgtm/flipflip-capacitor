@@ -35,6 +35,8 @@ public class FlipAudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
   private var active = false
   private var endedNotified = false
   private var pendingEndNotificationToken: NSObjectProtocol?
+  private var interruptionToken: NSObjectProtocol?
+  private var wasInterruptedWhilePlaying = false
 
   @objc func load(_ call: CAPPluginCall) {
     guard let urlString = call.getString("url"), let url = normalizedURL(urlString) else {
@@ -48,6 +50,31 @@ public class FlipAudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     let session = AVAudioSession.sharedInstance()
     try? session.setCategory(.playback, options: [.mixWithOthers])
     try? session.setActive(true)
+
+    // Interruptions (phone call, Siri, Control Center) deactivate our session and
+    // pause the player; when they end we re-arm the session and resume playback.
+    interruptionToken = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.interruptionNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] note in
+      guard let self = self,
+            let info = note.userInfo,
+            let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+      switch type {
+      case .began:
+        self.wasInterruptedWhilePlaying = self.player?.rate ?? 0 > 0
+      case .ended:
+        try? AVAudioSession.sharedInstance().setActive(true)
+        if self.wasInterruptedWhilePlaying {
+          self.player?.play()
+        }
+        self.wasInterruptedWhilePlaying = false
+      @unknown default:
+        break
+      }
+    }
 
     let item = AVPlayerItem(url: url)
     item.audioTimePitchAlgorithm = .spectral
@@ -232,6 +259,10 @@ public class FlipAudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
       NotificationCenter.default.removeObserver(token)
       pendingEndNotificationToken = nil
     }
+    if let token = interruptionToken {
+      NotificationCenter.default.removeObserver(token)
+      interruptionToken = nil
+    }
     if let obs = timeObserver, let p = player {
       p.removeTimeObserver(obs)
     }
@@ -239,6 +270,7 @@ public class FlipAudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     player?.pause()
     player = nil
     active = false
+    wasInterruptedWhilePlaying = false
   }
 }
 

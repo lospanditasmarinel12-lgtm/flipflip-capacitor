@@ -7,6 +7,14 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
   },
+  android: {
+    // Media elements on Android point at a native loopback HTTP server
+    // (flipflip-transcoder media server) because the WebView media stack
+    // cannot reliably range-read moov-at-end containers through Capacitor's
+    // local interceptor. This page is https://localhost, so the http://127.0.0.1
+    // media srcs are mixed content and must be permitted.
+    allowMixedContent: true,
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 3000,
