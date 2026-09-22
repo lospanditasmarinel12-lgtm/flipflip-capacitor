@@ -345,7 +345,7 @@ export default class LiveShowPlayer extends React.Component {
     const item = this.state.list[nextIndex];
 
     this.setState(
-      {index: nextIndex + 1, current: null, slot: null},
+      {index: nextIndex + 1, slot: null},
       () => this._loadOrCommit(item),
     );
   }
