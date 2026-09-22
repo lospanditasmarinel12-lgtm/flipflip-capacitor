@@ -1,4 +1,14 @@
 # Changelog
+## FlipFlip+ 6.0.0 <small>(09/22/2026)</small>
+- Play local and Optimized media fully in the mobile WebView: files are served as a single progressive stream, fixing ~4 second truncated previews and unplayable moov-at-end videos
+- Fix white flash between scene media: the current image/video stays on screen until the next one is ready (no blank frames on transitions)
+- Remove drag-and-drop on library lists (stable ordering, no accidental reorders; also fixes a VirtualList crash on mobile)
+- Add Play to source/audio context menus; clicking an item icon opens its preview
+- Add the media Optimization/transcoding pipeline (Android & iOS): encode library media into Optimized fMP4 files with progress and state tracking
+- Add mobile file import and conversion state handling
+- Audio Library loading/tagging and metadata refinements for mobile
+- Android/iOS runtime config, network security policy, and plugin wiring for the mobile build
+
 ## 3.2.2 <small>(06/XX/2023)</small>
 - Upgrade UI to MUIv5
 - Upgrade 3rd party libraries
