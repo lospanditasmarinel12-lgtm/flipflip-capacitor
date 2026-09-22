@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { isCapacitor } from "./platform";
-import { showOptimizeProgress, updateOptimizeProgress, hideOptimizeProgress, isImportCancelled } from "./convert";
+import { showOptimizeProgress, updateOptimizeProgress, hideOptimizeProgress, isImportCancelled, ensureDialogMounted } from "./convert";
 import { base64ToArrayBuffer, importBytes, optimizeCopied } from "./filepicker-shared";
 import type { PickFilesResult } from "./filepicker-shared";
 import { pickNativeDirectory, pickNativeMedia, pickNativeFilesByOptions as pickNativeFiles } from "./filepicker-native";
@@ -15,11 +15,21 @@ const yieldTick = (): Promise<void> => new Promise((resolve) => setTimeout(resol
 // large (or larger) through JS would OOM the WebView — skip it instead.
 const MAX_BUFFERED_FILE_BYTES = 30 * 1024 * 1024;
 
+// The snapshot is only meaningful right after a picker launch reloads the
+// WebView (same process, seconds later). localStorage is persistent across app
+// launches, so a snapshot that is even a few minutes old must NOT be restored —
+// otherwise a stale state would clobber the disk data.json on every fresh boot
+// (seen: audios wiped 13 -> 0 on relaunch).
+const PRE_PICK_MAX_AGE_MS = 5 * 60 * 1000;
+
 export function saveAppState() {
   try {
     const state = (window as any).__ZUSTAND_STATE__;
     if (state) {
-      localStorage.setItem("flipflip_prepick_state", JSON.stringify(state));
+      localStorage.setItem("flipflip_prepick_state", JSON.stringify({
+        ts: Date.now(),
+        state,
+      }));
     }
   } catch(e) {}
 }
@@ -27,9 +37,13 @@ export function saveAppState() {
 export function restoreAppStateIfNeeded() {
   try {
     const saved = localStorage.getItem("flipflip_prepick_state");
-    if (saved) {
-      localStorage.removeItem("flipflip_prepick_state");
-      return JSON.parse(saved);
+    if (!saved) return null;
+    let parsed: any = null;
+    try { parsed = JSON.parse(saved); } catch(e) { parsed = null; }
+    localStorage.removeItem("flipflip_prepick_state");
+    const ts = parsed && typeof parsed.ts === "number" ? parsed.ts : 0;
+    if (ts > 0 && Date.now() - ts < PRE_PICK_MAX_AGE_MS) {
+      return parsed.state;
     }
   } catch(e) {}
   return null;
@@ -82,16 +96,16 @@ export async function pickFiles(options: {
   }
   console.log("filepicker: Capacitor pickFiles - saving state");
   saveAppState();
-  if (Capacitor.getPlatform() === "android") {
-    return pickNativeFiles(options);
-  }
-  // iOS: prefer the native picker (returns real paths so large files can be
-  // copied path-to-path without buffering the whole file in JS). Fall back to
-  // the web input picker if the native one is unavailable.
+  // Prefer the native picker (returns real paths so large files can be copied
+  // path-to-path without buffering the whole file in JS). On devices where the
+  // native document picker is unavailable or errors (e.g. some SAF providers
+  // fail with "Error opening activity"), fall back to the standard WebView file
+  // chooser instead of rejecting — a silently swallowed rejection is what left
+  // the audio library permanently empty.
   try {
     return await pickNativeFiles(options);
   } catch (e) {
-    console.warn("filepicker: native pickFiles failed on iOS (document picker unavailable), falling back to the web picker", e);
+    console.warn("filepicker: native pickFiles failed on " + Capacitor.getPlatform() + " (document picker unavailable), falling back to the web picker", e);
     return pickFilesWeb(options);
   }
 }
@@ -123,7 +137,9 @@ async function pickFilesWeb(options: {
 
       const paths: string[] = [];
       let skippedDuplicates = 0;
-      showOptimizeProgress(files.length);
+      const total = files.length;
+      ensureDialogMounted();
+      showOptimizeProgress(total);
       let done = 0;
       while (files.length > 0) {
         if (isImportCancelled()) break;
@@ -142,7 +158,7 @@ async function pickFilesWeb(options: {
           const r = await importBytes(bytes, file.name);
           if (!r) { updateOptimizeProgress(done, file.name); await yieldTick(); continue; }
           if (r.existing) skippedDuplicates++;
-          const finalPath = await optimizeCopied(r.path, file.name, done);
+          const finalPath = await optimizeCopied(r.path, file.name, done, total);
           if (finalPath) paths.push(finalPath);
         } catch (e) {
           console.error("Failed to import file", file.name, e);
@@ -186,7 +202,9 @@ async function pickDirectoryWeb(): Promise<PickFilesResult> {
 
       const paths: string[] = [];
       let skippedDuplicates = 0;
-      showOptimizeProgress(files.length);
+      const total = files.length;
+      ensureDialogMounted();
+      showOptimizeProgress(total);
       let done = 0;
       while (files.length > 0) {
         if (isImportCancelled()) break;
@@ -205,7 +223,7 @@ async function pickDirectoryWeb(): Promise<PickFilesResult> {
           const r = await importBytes(bytes, file.name);
           if (!r) { updateOptimizeProgress(done, file.name); await yieldTick(); continue; }
           if (r.existing) skippedDuplicates++;
-          const finalPath = await optimizeCopied(r.path, file.name, done);
+          const finalPath = await optimizeCopied(r.path, file.name, done, total);
           if (finalPath) paths.push(finalPath);
         } catch (e) {
           console.error("Failed to import file", file.name, e);

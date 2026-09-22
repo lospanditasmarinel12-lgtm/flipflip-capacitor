@@ -1,5 +1,7 @@
 import { getFilesystem } from "./filesystem";
-import { maybeConvertHeavy, isHeavyMediaPath, updateOptimizeProgress } from "./convert";
+import { isHeavyMediaPath, updateOptimizeProgress } from "./convert";
+import { getResolvedRewrite, runDetachedConvert } from "./optimize-library";
+import { FlipTranscoder } from "flipflip-transcoder";
 
 export interface PickFilesResult {
   canceled: boolean;
@@ -122,9 +124,38 @@ export async function importBytes(
   }
 }
 
-export async function optimizeCopied(path: string | null, name: string, done: number): Promise<string | null> {
+export async function optimizeCopied(path: string | null, name: string, done: number, total: number): Promise<string | null> {
   if (!path) { updateOptimizeProgress(done, name); return null; }
-  const finalPath = isHeavyMediaPath(path) ? await maybeConvertHeavy(path) : path;
+  // Reject structurally incomplete video containers at import: a file without a
+  // moov box can never play and would otherwise linger as an infinite player
+  // spinner. Probe only parses box headers (no decode), so it is cheap.
+  if (/\.(mp4|mov|m4v)$/i.test(path)) {
+    try {
+      const probe = await FlipTranscoder.probe({ path });
+      if (probe && probe.kind === "video" && probe.complete === false) {
+        console.warn("[import] skipped incomplete video (unplayable container):", name);
+        updateOptimizeProgress(done, name);
+        return null;
+      }
+    } catch (e) {
+      // A probe failure is not proof of corruption; keep the file.
+      console.warn("[import] probe failed for", name, e);
+    }
+  }
+  // Heavy media is NEVER awaited through the encode here: a long 4K transcode
+  // can take 40-70min and the old inline await froze the whole import (popup
+  // stuck, spinner forever, library list empty) because the native conversion
+  // also blocked the bridge. Instead the original path is returned immediately
+  // (so the item shows up at once) and the conversion runs detached — references
+  // are rewritten to the optimized copy when it lands. The label keeps the
+  // foreground notification stepping per file ("3/7 — name") instead of frozen.
+  let finalPath: string;
+  if (isHeavyMediaPath(path)) {
+    finalPath = getResolvedRewrite(path);
+    runDetachedConvert(path, `${done}/${total} — ${name}`).catch((e) => console.warn("[optimize] detached convert failed:", path, e));
+  } else {
+    finalPath = path;
+  }
   updateOptimizeProgress(done, name);
   return finalPath;
 }

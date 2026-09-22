@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { base64ToArrayBuffer, importBytes, optimizeCopied, PickFilesResult, sanitizeName } from "./filepicker-shared";
-import { showOptimizeProgress, updateOptimizeProgress, hideOptimizeProgress, isImportCancelled } from "./convert";
+import { showOptimizeProgress, updateOptimizeProgress, hideOptimizeProgress, isImportCancelled, ensureDialogMounted } from "./convert";
 import { rememberPath } from "./local-paths";
 
 // Let the main thread breathe between large imports (see filepicker.ts).
@@ -43,6 +43,12 @@ async function uniqueDestName(name: string): Promise<string> {
  * path (importBytes) for dedupe.
  */
 async function importPickedFiles(files: Array<any>): Promise<PickFilesResult> {
+  // The progress dialog is mounted lazily on its own React root; make sure it
+  // exists before the first showOptimizeProgress so the import shows feedback
+  // from the very first copy (the dialog is otherwise only mounted by the both
+  // convert paths, never by import — so imports ran for tens of seconds with a
+  // frozen/blank screen).
+  ensureDialogMounted();
   const paths: string[] = [];
   let skippedDuplicates = 0;
   showOptimizeProgress(files.length);
@@ -82,7 +88,7 @@ async function importPickedFiles(files: Array<any>): Promise<PickFilesResult> {
         const absDest = `${base.uri}/imported/${destName}`;
         await FilePicker.copyFile({ from: f.path, to: absDest });
         const dest = `imported/${destName}`;
-        const finalPath = await optimizeCopied(dest, name, done);
+        const finalPath = await optimizeCopied(dest, name, done, files.length);
         // The native copy bypasses the JS filesystem adapter, so register the
         // result with the local path index — consumers gate on syncPathExists
         // (e.g. AudioLibrary.addAudioSources) and would silently drop new files.
@@ -134,7 +140,7 @@ async function importPickedFiles(files: Array<any>): Promise<PickFilesResult> {
       if (r) {
         if (r.existing) skippedDuplicates++;
         rememberPath(r.path);
-        const finalPath = await optimizeCopied(r.path, name, done);
+        const finalPath = await optimizeCopied(r.path, name, done, files.length);
         if (finalPath) { rememberPath(finalPath); paths.push(finalPath); }
       }
     } catch (e) {

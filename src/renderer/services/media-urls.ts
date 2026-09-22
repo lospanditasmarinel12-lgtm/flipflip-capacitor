@@ -43,3 +43,35 @@ export async function toWebViewUrl(path: string): Promise<string> {
     }
   }
 }
+
+/**
+ * Resolves a sandbox-relative media path to a src usable by <video>/<audio>.
+ * On Android/Capacitor the WebView media stack cannot reliably range-read
+ * moov-at-end containers through Capacitor's local interceptor (the EOF tail
+ * read fails with net::ERR_FAILED / PIPELINE_ERROR_READ), so audio/video was
+ * served from the native loopback HTTP server instead. Images and non-capacitor
+ * platforms keep using the plain converted src.
+ *
+ * EXPERIMENT: LOOPBACK_ENABLED=false routes previews back through the original
+ * convertFileSrc form (https://localhost/_capacitor_file_...) now that Media3
+ * emits proper moov-at-start fMP4. Flip to true to restore the loopback path.
+ */
+const LOOPBACK_ENABLED = false;
+
+export async function toPlaybackUrl(path: string): Promise<string> {
+  if (!path) return path;
+  if (isRemoteOrSchemeUrl(path)) return path;
+  if (isCapacitor() && LOOPBACK_ENABLED) {
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.getPlatform() === "android") {
+        const { FlipTranscoder } = await import("flipflip-transcoder");
+        const { url } = await FlipTranscoder.resolveMediaUrl({ path });
+        if (url) return url;
+      }
+    } catch (e) {
+      console.warn("[media-urls] media server resolution failed for", path, "falling back to webview url:", e);
+    }
+  }
+  return toWebViewUrl(path);
+}

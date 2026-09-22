@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Media optimization runs in a foreground service + partial wake lock so
+         a long sweep (big 4K/HEVC clips) survives the screen locking or the
+         app being backgrounded. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application>
+        <service
+            android:name="com.flipflip.transcoder.MediaOptimizationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProcessing"
+            tools:targetApi="34" />
+    </application>
+</manifest>

@@ -74,9 +74,12 @@ export default class MediaOptimizationCard extends React.Component<MediaOptimiza
               title={
                 <div>
                   Heavy camera files (HDR, wider/taller than 1080p×1920, HEIC/HEIF, larger than ~8 MB, or
-                  videos over ~100 MB / 20 Mbps) are converted to SDR 1080p when you import them, and only the
-                  optimized copy is kept. Turning this off imports your files completely untouched — they stay
-                  original quality but are much larger and may be slower to play or not play at all (HDR/HEIC).
+                  videos over ~100 MB / 20 Mbps) are converted to SDR 1080p when you import them, and oversized
+                  or one-platform-only audio (e.g. large WAV/AIFF, .ogg/.opus/.wma) is re-encoded to a small
+                  AAC 256 kbps .m4a. Only the optimized copies are kept. Turning this off imports your files
+                  completely untouched — they stay original quality but are much larger and may be slower to
+                  play or not play at all (HDR/HEIC/Opus). Animated GIFs/WebP are never converted; FLAC audio
+                  is always kept lossless.
                 </div>
               }
             >
@@ -93,9 +96,10 @@ export default class MediaOptimizationCard extends React.Component<MediaOptimiza
           </Grid>
           <Grid item xs={12}>
             <Typography variant="body2" color="textSecondary">
-              When on, imported camera media is converted to SDR 1080p so slideshows run smoothly and store less.
-              When off, your files are imported exactly as they are — no conversion, no quality loss, but heavier
-              storage and possible playback issues with HDR/HEIC files. Changes apply to new imports.
+              When on, imported camera media is converted to SDR 1080p and oversized/unplayable audio to AAC 256 so slideshows
+              run smoothly and store less. When off, your files are imported exactly as they are — no conversion, no
+              quality loss, but heavier storage and possible playback issues with HDR/HEIC/Opus files. Changes apply
+              to new imports.
             </Typography>
           </Grid>
           {isCapacitor() && (
@@ -126,9 +130,10 @@ export default class MediaOptimizationCard extends React.Component<MediaOptimiza
             <DialogTitle id="optimize-library-title">Optimize Existing Library</DialogTitle>
             <DialogContent>
               <DialogContentText id="optimize-library-description" component="div">
-                Scans every local image/video referenced by your library (plus everything in imported/) and converts
-                heavy files — HDR, oversized, or high bitrate — to lightweight SDR 1080p copies that play smoothly on
-                mobile. Folder sources that scan whole directories are left untouched.
+                Scans every local image/video/audio referenced by your library (plus everything in imported/)
+                and converts heavy files — HDR, oversized, or high bitrate media, and oversized or unplayable
+                audio — to lightweight SDR 1080p / AAC 256 kbps copies that play smoothly on mobile. Folder
+                sources that scan whole directories are left untouched.
               </DialogContentText>
               <RadioGroup
                 aria-label="optimize-mode"
